@@ -7,7 +7,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const app = express();
-const PORT = 3001;
+const PORT = "https://evtol-pricing.onrender.com";//3001;
 const AMAP_KEY = process.env.AMAP_KEY || 'b253fb34885439b30641245a2632413b';
 
 app.use(cors());
