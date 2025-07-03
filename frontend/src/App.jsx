@@ -38,6 +38,62 @@ function App() {
   const [qaLoading, setQaLoading] = useState(false);
   const [qaError, setQaError] = useState('');
   const [qaHistory, setQaHistory] = useState([]); // {role, content}
+  const co2PopoverRef = useRef(null);
+
+  // CO2参数说明
+  const co2Params = {
+    'Fuel Car': {
+      params: [
+        'Fuel consumption (L/100km): 8.0',
+        'CO₂ emission factor: 2.32 kg/L',
+      ],
+      formula: 'CO₂ emissions = Distance (km) × (Fuel consumption / 100) × CO₂ emission factor',
+      example: 'E.g. 100 km: 100 × (8/100) × 2.32 = 18.56 kg CO₂',
+    },
+    'EV': {
+      params: [
+        'Electricity consumption (kWh/100km): 15',
+        'CO₂ emission factor: 0.55 kg/kWh (China average grid)',
+      ],
+      formula: 'CO₂ emissions = Distance (km) × (Electricity consumption / 100) × CO₂ emission factor',
+      example: 'E.g. 100 km: 100 × (15/100) × 0.55 = 8.25 kg CO₂',
+    },
+    'Robotaxi': {
+      params: [
+        'Assumed to be EV, same as EV',
+      ],
+      formula: 'Same as EV',
+      example: '',
+    },
+    'Taxi': {
+      params: [
+        'Assumed to be fuel car, same as Fuel Car',
+      ],
+      formula: 'Same as Fuel Car',
+      example: '',
+    },
+    'eVTOL': {
+      params: [
+        'Energy consumption (kWh/100km): 60 (assumed)',
+        'CO₂ emission factor: 0.55 kg/kWh (China average grid)',
+      ],
+      formula: 'CO₂ emissions = Distance (km) × (Energy consumption / 100) × CO₂ emission factor',
+      example: 'E.g. 100 km: 100 × (60/100) × 0.55 = 33 kg CO₂',
+    },
+  };
+  const [co2BarSelected, setCo2BarSelected] = useState(null);
+
+  // 监听点击空白关闭co2说明
+  useEffect(() => {
+    if (!co2BarSelected) return;
+    const handleClick = (e) => {
+      if (co2PopoverRef.current && !co2PopoverRef.current.contains(e.target)) {
+        setCo2BarSelected(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [co2BarSelected]);
 
   // 初始化2D地图
   useEffect(() => {
@@ -869,6 +925,121 @@ function App() {
                         }]
                       }}
                     />
+                  </div>
+                );
+              })()}
+            </Tabs.TabPane>
+            <Tabs.TabPane tab="CO2 Emissions" key="co2">
+              {(() => {
+                // 计算各交通方式碳排放（单位kg）
+                let fuel = null, ev = null, robotaxi = null, taxi = null, evtol = null;
+                if (results) {
+                  const driving = results.driving.route && results.driving.route.paths && results.driving.route.paths[0];
+                  if (driving) {
+                    const distanceKm = driving.distance / 1000;
+                    // Fuel Car
+                    const L_100km = 8.0; // L/100km
+                    const CO2_per_L = 2.32; // kg CO2 per L 汽油
+                    fuel = distanceKm * (L_100km / 100) * CO2_per_L;
+                    // EV
+                    const evEnergyPer100km = 15; // kWh/100km
+                    const CO2_per_kWh = 0.55; // kg CO2 per kWh（中国平均电网）
+                    ev = distanceKm * (evEnergyPer100km / 100) * CO2_per_kWh;
+                    // Robotaxi（假设为电动车）
+                    robotaxi = ev;
+                    // Taxi（假设为燃油车）
+                    taxi = fuel;
+                  }
+                  // eVTOL
+                  if (results.straight && results.straight.results && results.straight.results[0]) {
+                    const straight = results.straight.results[0];
+                    const distance = straight.distance; // meters
+                    const distanceKm = distance / 1000;
+                    // eVTOL能耗与CO2
+                    const kWh_per_100km = 60; // 假设eVTOL 60kWh/100km
+                    const CO2_per_kWh = 0.55; // kg CO2 per kWh
+                    evtol = distanceKm * (kWh_per_100km / 100) * CO2_per_kWh;
+                  }
+                }
+                const chartData = [
+                  { name: 'Fuel Car', value: fuel },
+                  { name: 'EV', value: ev },
+                  { name: 'Robotaxi', value: robotaxi },
+                  { name: 'Taxi', value: taxi },
+                  { name: 'eVTOL', value: evtol },
+                ];
+                return (
+                  <div style={{ width: '100%', height: 340 }}>
+                    <ReactECharts
+                      style={{ height: 320 }}
+                      option={{
+                        grid: { left: 40, right: 20, top: 30, bottom: 40 },
+                        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                        xAxis: {
+                          type: 'category',
+                          data: ['Fuel Car', 'EV', 'Robotaxi', 'Taxi', 'eVTOL'],
+                          axisLabel: { fontWeight: 600, fontSize: 12 },
+                        },
+                        yAxis: {
+                          type: 'value',
+                          name: 'kg CO₂',
+                          nameTextStyle: { fontWeight: 500, fontSize: 12, align: 'left' },
+                          axisLabel: { fontWeight: 500, fontSize: 12 },
+                        },
+                        series: [{
+                          type: 'bar',
+                          data: chartData.map(d => (d.value !== null && !isNaN(d.value)) ? Number(d.value.toFixed(2)) : null),
+                          itemStyle: {
+                            color: function(params) {
+                              const palette = ['#1890ff','#00c2b3','#00b96b','#ffb300','#ff4d4f'];
+                              return palette[params.dataIndex % palette.length];
+                            },
+                            borderRadius: [6,6,0,0],
+                          },
+                          barWidth: 38,
+                          label: {
+                            show: true,
+                            position: 'top',
+                            fontWeight: 600,
+                            fontSize: 12,
+                            formatter: v => v.value?.toFixed(2)
+                          }
+                        }]
+                      }}
+                      onEvents={{
+                        'click': (params) => {
+                          setCo2BarSelected(params.name);
+                        }
+                      }}
+                    />
+                    {co2BarSelected && co2Params[co2BarSelected] && (
+                      <div
+                        ref={co2PopoverRef}
+                        style={{
+                          position: 'absolute',
+                          left: 60,
+                          top: 60,
+                          zIndex: 20,
+                          minWidth: 320,
+                          background: '#f7f8fa',
+                          borderRadius: 10,
+                          boxShadow: '0 4px 24px rgba(0,0,0,0.13)',
+                          padding: 18,
+                          fontSize: 13,
+                          color: '#222',
+                          border: '1px solid #e0e0e0',
+                          maxWidth: 400
+                        }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div style={{ fontWeight: 600, marginBottom: 4 }}>{co2BarSelected} CO₂ Emission Parameters & Calculation</div>
+                        <ul style={{ margin: 0, paddingLeft: 18 }}>
+                          {co2Params[co2BarSelected].params.map((p, i) => <li key={i}>{p}</li>)}
+                        </ul>
+                        <div style={{ margin: '6px 0 2px 0', color: '#555' }}>Formula: {co2Params[co2BarSelected].formula}</div>
+                        {co2Params[co2BarSelected].example && <div style={{ color: '#888' }}>Example: {co2Params[co2BarSelected].example}</div>}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
