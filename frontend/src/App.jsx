@@ -95,9 +95,9 @@ function App() {
     const newMarkers = points.map((p, idx) => {
       if (idx === 1) {
         // 终点marker：渐变红色圆形，无label
-        return new window.AMap.Marker({
-          position: [p.lng, p.lat],
-          map,
+      return new window.AMap.Marker({
+        position: [p.lng, p.lat],
+        map,
           content: '<div style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#ff4d4f 0%,#ff7875 100%);box-shadow:0 0 6px #ff4d4f; border:2px solid #fff;"></div>',
           offset: new window.AMap.Pixel(-8, -8),
         });
@@ -108,7 +108,7 @@ function App() {
           map,
           content: '<div style="width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#00e0ff 0%,#00bfff 100%);box-shadow:0 0 6px #00e0ff; border:2px solid #fff;"></div>',
           offset: new window.AMap.Pixel(-8, -8),
-        });
+      });
       }
     });
     setMarkers(newMarkers);
@@ -874,54 +874,54 @@ function App() {
               })()}
             </Tabs.TabPane>
             <Tabs.TabPane tab="DeepSeek Analysis" key="deepseek">
-              {aiLoading ? (
-                <div className="ai-spin-center"><Spin /></div>
-              ) : aiError ? (
-                <div style={{ color: 'red' }}>{aiError}</div>
-              ) : (
-                <>
-                  <div style={{ maxHeight: 320, overflow: 'auto' }} className="markdown-body">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiAnalysis}</ReactMarkdown>
-                  </div>
-                  {aiAnalysis && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                      <Button
-                        style={{ flex: 1 }}
-                        onClick={() => {
-                          if (navigator.clipboard) {
-                            navigator.clipboard.writeText(aiAnalysis);
-                          } else {
-                            const textarea = document.createElement('textarea');
-                            textarea.value = aiAnalysis;
-                            document.body.appendChild(textarea);
-                            textarea.select();
-                            document.execCommand('copy');
-                            document.body.removeChild(textarea);
-                          }
-                        }}
-                      >
-                        Copy Content
-                      </Button>
-                      <Button
-                        type="primary"
-                        style={{ flex: 1 }}
+          {aiLoading ? (
+            <div className="ai-spin-center"><Spin /></div>
+          ) : aiError ? (
+            <div style={{ color: 'red' }}>{aiError}</div>
+          ) : (
+            <>
+              <div style={{ maxHeight: 320, overflow: 'auto' }} className="markdown-body">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiAnalysis}</ReactMarkdown>
+              </div>
+              {aiAnalysis && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <Button
+                    style={{ flex: 1 }}
+                    onClick={() => {
+                      if (navigator.clipboard) {
+                        navigator.clipboard.writeText(aiAnalysis);
+                      } else {
+                        const textarea = document.createElement('textarea');
+                        textarea.value = aiAnalysis;
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textarea);
+                      }
+                    }}
+                  >
+                    Copy Content
+                  </Button>
+                  <Button
+                    type="primary"
+                    style={{ flex: 1 }}
                         onClick={() => setQaModalOpen(true)}
                         disabled={aiLoading}
-                      >
+                  >
                         Still have questions?
-                      </Button>
-                    </div>
-                  )}
-                  {!aiAnalysis && !aiLoading && !aiError && (
-                    <Button
-                      type="primary"
-                      style={{ marginTop: 12, width: '100%' }}
-                      onClick={fetchAIAnalysis}
-                      disabled={!results || aiLoading}
-                    >
+                  </Button>
+                </div>
+          )}
+          {!aiAnalysis && !aiLoading && !aiError && (
+            <Button
+              type="primary"
+              style={{ marginTop: 12, width: '100%' }}
+              onClick={fetchAIAnalysis}
+              disabled={!results || aiLoading}
+            >
                       Run Analysis
-                    </Button>
-                  )}
+            </Button>
+          )}
                 </>
               )}
             </Tabs.TabPane>
