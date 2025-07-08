@@ -40,6 +40,11 @@ function App() {
   const [qaHistory, setQaHistory] = useState([]); // {role, content}
   const co2PopoverRef = useRef(null);
 
+  // 1. 新增Gemini分析相关状态
+  const [geminiAnalysis, setGeminiAnalysis] = useState('');
+  const [geminiLoading, setGeminiLoading] = useState(false);
+  const [geminiError, setGeminiError] = useState('');
+
   // CO2参数说明
   const co2Params = {
     'Fuel Car': {
