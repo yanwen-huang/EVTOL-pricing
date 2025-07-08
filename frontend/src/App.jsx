@@ -194,9 +194,9 @@ function App() {
         const cityd = await getCity(points[1].lng, points[1].lat);
         // 并发请求
         const [driving, transit, straight] = await Promise.all([
-          axios.post('http://8.138.195.102:3001/api/route/driving', { origin, destination }),
-          axios.post('http://8.138.195.102:3001/api/route/transit', { origin, destination, city, cityd }),
-          axios.post('http://8.138.195.102:3001/api/route/straight', { origin, destination }),
+          axios.post('http://localhost:3001/api/route/driving', { origin, destination }),
+          axios.post('http://localhost:3001/api/route/transit', { origin, destination, city, cityd }),
+          axios.post('http://localhost:3001/api/route/straight', { origin, destination }),
         ]);
         setResults({ driving: driving.data, transit: transit.data, straight: straight.data });
         // 绘制驾车/公交路线
