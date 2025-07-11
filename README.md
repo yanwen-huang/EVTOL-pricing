@@ -1,16 +1,19 @@
 # EVTOL-Pricing
 
-EVTOL-Pricing is a web application for simulating and comparing eVTOL (electric vertical takeoff and landing) travel routes and pricing. The project consists of a React + Vite frontend and a Node.js backend, integrating Amap (Gaode) APIs for real-world route and distance data.
+## App Introduction
 
----
+**EVTOL-Pricing** is a web application designed to simulate, analyze, and compare the costs of various urban transportation modes—including traditional ground transport (fuel cars, EVs, taxis, robotaxis) and innovative eVTOL (electric vertical takeoff and landing aircraft). Inspired by the rapid evolution of urban mobility, this tool helps users make data-driven decisions by providing intuitive cost comparisons, smart analysis, and real-world route calculations.
 
-## Features
-- Fullscreen interactive Amap (Gaode) map
-- Click to select start and end points
-- Automatically fetches driving, public transit, and straight-line (as-the-crow-flies) routes
-- Results displayed as cards with route details
-- English UI
-- Backend API for route calculation and data aggregation
+## Key Features
+- **Comprehensive Cost Comparison:** Calculate and compare travel costs for fuel cars, EVs, robotaxis, taxis, and eVTOLs.
+- **Smart Analysis & Visualization:** AI-powered English analysis and bar charts clearly present price differences and offer eVTOL pricing recommendations.
+- **Route & Price Calculation:** Integrates with mapping APIs to fetch real-world route data, detour factors, and compute costs for each mode.
+
+## Target Users
+- **Urban Planners & Policymakers:** For multi-modal transport planning, cost estimation, and policy support.
+- **eVTOL & Mobility Innovators:** To assist with market pricing, business model design, and feasibility studies.
+- **Researchers & Academics:** For data collection and analysis in transport behavior and cost structure studies.
+- **General Travelers:** To help users understand cost differences and make better travel choices.
 
 ---
 
