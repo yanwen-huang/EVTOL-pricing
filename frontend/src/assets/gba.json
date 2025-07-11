@@ -1,0 +1,15 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "GBA" },
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [[[113.1206,23.1252],[113.1306,23.1352],[113.1406,23.1452],[113.1206,23.1252]]]
+        ]
+      }
+    }
+  ]
+} 

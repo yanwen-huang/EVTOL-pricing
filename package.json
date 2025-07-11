@@ -4,6 +4,7 @@
     "echarts-for-react": "^3.0.2",
     "react-draggable": "^4.5.0",
     "react-rnd": "^10.5.2",
+    "recharts": "^2.9.0",
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
