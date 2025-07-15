@@ -1001,11 +1001,11 @@ function App() {
                 <div style={{ color: 'red' }}>{aiError}</div>
               ) : (
                 <>
-                  <div style={{ maxHeight: 320, overflow: 'auto' }} className="markdown-body">
+                  <div style={{ maxHeight: '19vh', overflow: 'auto' }} className="markdown-body">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiAnalysis}</ReactMarkdown>
                   </div>
                   {aiAnalysis && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 12, marginBottom: 2 }}>
                       <Button
                         style={{ flex: 1 }}
                         onClick={() => {
@@ -1100,7 +1100,7 @@ function App() {
                       </div>
                     </div>
                   </div>
-                  <div style={{fontSize:13, color:'#888', marginTop:8}}>
+                  <div style={{fontSize:13, color:'#888', marginTop:8, paddingBottom:10}}>
                     <span style={{cursor: 'pointer'}} onClick={() => toggleAssumption('evtol')}>
                       {showAssumptions.evtol ? '▼' : '▶'} Custimize Assumptions
                     </span>
@@ -1200,7 +1200,7 @@ function App() {
                         </div>
                       </div>
                     </div>
-                    <div style={{fontSize:13, color:'#888', marginTop:8}}>
+                    <div style={{fontSize:13, color:'#888', marginTop:8, paddingBottom:10}}>
                       <span style={{cursor: 'pointer'}} onClick={() => toggleAssumption('fuel')}>
                         {showAssumptions.fuel ? '▼' : '▶'} Custimize Assumptions
                       </span>
@@ -1267,7 +1267,7 @@ function App() {
                         </div>
                       </div>
                     </div>
-                    <div style={{fontSize:13, color:'#888', marginTop:8}}>
+                    <div style={{fontSize:13, color:'#888', marginTop:8, paddingBottom:10}}>
                       <span style={{cursor: 'pointer'}} onClick={() => toggleAssumption('ev')}>
                         {showAssumptions.ev ? '▼' : '▶'} Custimize Assumptions
                       </span>
@@ -1365,7 +1365,7 @@ function App() {
                         </div>
                       </div>
                     </div>
-                    <div style={{fontSize:13, color:'#888', marginTop:8}}>
+                    <div style={{fontSize:13, color:'#888', marginTop:8, paddingBottom:10}}>
                       <span style={{cursor: 'pointer'}} onClick={() => toggleAssumption('robotaxi')}>
                         {showAssumptions.robotaxi ? '▼' : '▶'} Custimize Assumptions
                       </span>
@@ -1484,7 +1484,7 @@ function App() {
                         </div>
                       </div>
                     </div>
-                    <div style={{fontSize:13, color:'#888', marginTop:8}}>
+                    <div style={{fontSize:13, color:'#888', marginTop:8, paddingBottom:10}}>
                     <span style={{cursor: 'pointer'}} onClick={() => toggleAssumption('taxi')}>
                       {showAssumptions.taxi ? '▼' : '▶'} Custimize Assumptions
                     </span>
