@@ -8,6 +8,7 @@
 - **Comprehensive Cost Comparison:** Calculate and compare travel costs for fuel cars, EVs, robotaxis, taxis, and eVTOLs.
 - **Smart Analysis & Visualization:** AI-powered English analysis and bar charts clearly present price differences and offer eVTOL pricing recommendations.
 - **Route & Price Calculation:** Integrates with mapping APIs to fetch real-world route data, detour factors, and compute costs for each mode.
+- **User-Friendly Interface:** Clean, intuitive UI with one-click export of analysis results.
 
 ## Target Users
 - **Urban Planners & Policymakers:** For multi-modal transport planning, cost estimation, and policy support.
@@ -36,7 +37,7 @@ EVTOL-Pricing/
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/EVTOL-Pricing.git
+git clone https://github.com/yanwen-huang/EVTOL-Pricing.git
 cd EVTOL-Pricing
 ```
 

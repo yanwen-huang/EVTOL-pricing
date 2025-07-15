@@ -584,7 +584,7 @@ function App() {
       const depreciation = fuelPurchaseCost / (fuelYears * fuelAnnualMileage) * distanceKm;
       const parkingCost = (fuelParkingMonthly * 12 / fuelAnnualMileage) * distanceKm;
       const timeValue = durationHour * hourValue;
-      fuelCarCost = fuelCost + tollCost + depreciation + parkingCost + timeValue;
+      fuelCarCost = fuelCost + tollCost + depreciation + parkingCost;
     }
     // EV
     let evCost = null;
@@ -596,7 +596,7 @@ function App() {
       const depreciation = evPurchaseCost / (evYears * evAnnualMileage) * distanceKm;
       const parkingCost = (evParkingMonthly * 12 / evAnnualMileage) * distanceKm;
       const timeValue = durationHour * hourValue;
-      evCost = energyCost + tollCost + depreciation + parkingCost + timeValue;
+      evCost = energyCost + tollCost + depreciation + parkingCost;
     }
     // Robotaxi
     let robotaxiFare = null;
@@ -692,27 +692,243 @@ function App() {
 
     return (
       <div className="cards-panel">
-        <Card title="Analysis" className="result-card" bodyStyle={{height: 365, overflowY: 'auto', padding: '0 24px'}}>
+        <Card title="Analysis" className="result-card" bodyStyle={{height: '28vh', overflowY: 'auto', padding: '0 24px'}}>
           <Tabs defaultActiveKey="barchart">
             <Tabs.TabPane tab="Price Analysis" key="barchart">
               {(() => {
+                // 计算各交通方式的实际成本和时间成本
                 const chartData = [
-                  { name: 'Fuel Car', value: fuelCarCost },
-                  { name: 'EV', value: evCost },
-                  { name: 'Robotaxi', value: robotaxiFare },
-                  { name: 'Taxi', value: taxiFare },
-                  { name: 'eVTOL', value: evtolTotalCost },
+                  {
+                    name: 'Fuel Car',
+                    actual: (() => {
+                      const driving = results?.driving?.route?.paths?.[0];
+                      if (!driving) return 0;
+                      const distanceKm = driving.distance / 1000;
+                      const durationHour = driving.duration / 3600;
+                      const fuelCost = (fuelConsumption / 100) * fuelPrice * distanceKm;
+                      const tollCost = Number(driving.tolls || 0);
+                      const depreciation = fuelPurchaseCost / (fuelYears * fuelAnnualMileage) * distanceKm;
+                      const parkingCost = (fuelParkingMonthly * 12 / fuelAnnualMileage) * distanceKm;
+                      const timeValue = durationHour * hourValue;
+                      const totalCost = fuelCost + tollCost + depreciation + parkingCost;
+                      return totalCost;
+                    })(),
+                    time: (() => {
+                      const driving = results?.driving?.route?.paths?.[0];
+                      if (!driving) return 0;
+                      const distanceKm = driving.distance / 1000;
+                      const durationHour = driving.duration / 3600;
+                      const fuelCost = (fuelConsumption / 100) * fuelPrice * distanceKm;
+                      const tollCost = Number(driving.tolls || 0);
+                      const depreciation = fuelPurchaseCost / (fuelYears * fuelAnnualMileage) * distanceKm;
+                      const parkingCost = (fuelParkingMonthly * 12 / fuelAnnualMileage) * distanceKm;
+                      const timeValue = durationHour * hourValue;
+                      return timeValue;
+                    })(),
+                  },
+                  {
+                    name: 'EV',
+                    actual: (() => {
+                      const driving = results?.driving?.route?.paths?.[0];
+                      if (!driving) return 0;
+                      const distanceKm = driving.distance / 1000;
+                      const durationHour = driving.duration / 3600;
+                      const energyCost = (evConsumption / 100) * evElectricityPrice * distanceKm;
+                      const tollCost = Number(driving.tolls || 0);
+                      const depreciation = evPurchaseCost / (evYears * evAnnualMileage) * distanceKm;
+                      const parkingCost = (evParkingMonthly * 12 / evAnnualMileage) * distanceKm;
+                      const timeValue = durationHour * hourValue;
+                      const totalCost = energyCost + tollCost + depreciation + parkingCost;
+                      return totalCost;
+                    })(),
+                    time: (() => {
+                      const driving = results?.driving?.route?.paths?.[0];
+                      if (!driving) return 0;
+                      const distanceKm = driving.distance / 1000;
+                      const durationHour = driving.duration / 3600;
+                      const energyCost = (evConsumption / 100) * evElectricityPrice * distanceKm;
+                      const tollCost = Number(driving.tolls || 0);
+                      const depreciation = evPurchaseCost / (evYears * evAnnualMileage) * distanceKm;
+                      const parkingCost = (evParkingMonthly * 12 / evAnnualMileage) * distanceKm;
+                      const timeValue = durationHour * hourValue;
+                      return timeValue;
+                    })(),
+                  },
+                  {
+                    name: 'Robotaxi',
+                    actual: (() => {
+                      const driving = results?.driving?.route?.paths?.[0];
+                      if (!driving) return 0;
+                      const params = robotaxiParams;
+                      const tolls = Number(driving.tolls || 0);
+                      const distanceKm = driving.distance / 1000;
+                      const durationMin = Math.round(driving.duration / 60);
+                      // --- Cost calculations (copy from robotaxi tab) ---
+                      const energyCost = distanceKm * params.energyPer100km * params.electricityPrice / 100;
+                      const chargingServiceCost = distanceKm * params.energyPer100km * params.chargingServiceFeePerKwh / 100;
+                      const parkingCost = distanceKm * params.parkingFeePer100km / 100;
+                      const tollCost = distanceKm * params.tollPerKm + tolls;
+                      const depreciation = params.vehiclePrice / params.depreciationYears / params.annualMileage * distanceKm;
+                      const computeCost = distanceKm * params.computeCostPerKm;
+                      const maintenanceCost = distanceKm * params.maintenancePerKm;
+                      const insuranceCost = params.insurancePerYear / params.annualMileage * distanceKm;
+                      const taxCost = params.taxPerYear / params.annualMileage * distanceKm;
+                      const tireCost = params.tirePerYear / params.annualMileage * distanceKm;
+                      const remoteMonitorCost = distanceKm * params.remoteMonitorPerKm;
+                      const timeValue = durationMin / 60 * hourValue;
+                      const totalOperatingCost = energyCost + chargingServiceCost + parkingCost + tollCost + depreciation + computeCost + maintenanceCost + insuranceCost + taxCost + tireCost + remoteMonitorCost + timeValue;
+                      const operatorServiceFee = totalOperatingCost * params.operatorServiceRate;
+                      const adRevenue = params.adRevenuePerKm * distanceKm;
+                      const passengerFare = totalOperatingCost + operatorServiceFee - adRevenue;
+                      return passengerFare;
+                    })(),
+                    time: (() => {
+                      const driving = results?.driving?.route?.paths?.[0];
+                      if (!driving) return 0;
+                      const durationMin = Math.round(driving.duration / 60);
+                      const timeValue = durationMin / 60 * hourValue;
+                      return timeValue;
+                    })(),
+                  },
+                  {
+                    name: 'Taxi',
+                    actual: (() => {
+                      const driving = results?.driving?.route?.paths?.[0];
+                      if (!driving) return 0;
+                      const tolls = Number(driving.tolls || 0);
+                      const distanceKm = driving.distance / 1000;
+                      const durationMin = driving.duration / 60;
+                      let meterFare = baseFare;
+                      if (distanceKm > baseDist) {
+                        const mid = Math.min(distanceKm, midDist) - baseDist;
+                        if (mid > 0) {
+                          meterFare += mid * midRate;
+                        }
+                        if (distanceKm > midDist) {
+                          const high = distanceKm - midDist;
+                          if (high > 0) {
+                            meterFare += high * highRate;
+                          }
+                        }
+                      }
+                      // 等时费
+                      const timeFee = durationMin * timeRate;
+                      meterFare += timeFee;
+                      // 时间价值
+                      const timeValueTaxi = durationMin / 60 * hourValue;
+                      meterFare += timeValueTaxi;
+                      // 去程高速费
+                      meterFare += tolls;
+                      // 返程部分
+                      let returnFare = 0, returnToll = 0;
+                      if (distanceKm > returnDist) {
+                        returnToll = tolls; // 假设回程高速费=去程高速费
+                        returnFare = meterFare * returnRatio;
+                      }
+                      // 总价
+                      const totalFare = meterFare + (distanceKm > returnDist ? (returnToll + returnFare) : 0);
+                      return totalFare;
+                    })(),
+                    time: (() => {
+                      const driving = results?.driving?.route?.paths?.[0];
+                      if (!driving) return 0;
+                      const durationMin = driving.duration / 60;
+                      const timeValueTaxi = durationMin / 60 * hourValue;
+                      return timeValueTaxi;
+                    })(),
+                  },
+                  {
+                    name: 'eVTOL',
+                    actual: (() => {
+                      const straight = results?.straight?.results?.[0];
+                      if (!straight) return 0;
+                      const distance = straight.distance;
+                      const cruiseSpeed = 200 * 1000 / 3600;
+                      const takeoffLandSpeed = 7.5;
+                      const cruiseAltitude = 800;
+                      const takeoffTime = cruiseAltitude / takeoffLandSpeed;
+                      const landingTime = cruiseAltitude / takeoffLandSpeed;
+                      const cruiseDistance = Math.max(0, distance - 2 * cruiseAltitude);
+                      const cruiseTime = cruiseDistance / cruiseSpeed;
+                      const totalTime = takeoffTime + cruiseTime + landingTime;
+                      const flightHours = totalTime / 3600;
+                      const p = evtolParams;
+                      const depreciation = p.aircraftPrice / (p.aircraftLifespanYears * p.annualFlightHours) * flightHours;
+                      const computeCost = p.computeCostPerHour * flightHours;
+                      const airwayCost = p.airwayCostPerKm * (distance / 1000);
+                      const vertiportCost = p.vertiportCostPerFlight;
+                      const parkingCost = p.parkingCostPerHour * flightHours;
+                      const maintenanceCost = p.maintenancePerHour * flightHours;
+                      const energyCost = p.energyPerHour * flightHours;
+                      return depreciation + computeCost + airwayCost + vertiportCost + parkingCost + maintenanceCost + energyCost;
+                    })(),
+                    time: (() => {
+                      const straight = results?.straight?.results?.[0];
+                      if (!straight) return 0;
+                      const distance = straight.distance;
+                      const cruiseSpeed = 200 * 1000 / 3600;
+                      const takeoffLandSpeed = 7.5;
+                      const cruiseAltitude = 800;
+                      const takeoffTime = cruiseAltitude / takeoffLandSpeed;
+                      const landingTime = cruiseAltitude / takeoffLandSpeed;
+                      const cruiseDistance = Math.max(0, distance - 2 * cruiseAltitude);
+                      const cruiseTime = cruiseDistance / cruiseSpeed;
+                      const totalTime = takeoffTime + cruiseTime + landingTime;
+                      const flightHours = totalTime / 3600;
+                      return flightHours * hourValue;
+                    })(),
+                  },
                 ];
                 return (
                   <div style={{ width: '100%', height: 300 }}>
                     <ReactECharts
-                      style={{ height: 280 }}
+                      style={{ height: '23vh' }}
                       option={{
-                        grid: { left: 40, right: 20, top: 30, bottom: 16 },
-                        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                        grid: { left: 40, right: 20, top: 50, bottom: 30 },
+                        tooltip: {
+                          trigger: 'axis',
+                          axisPointer: { type: 'shadow' },
+                          formatter: params => {
+                            const p = params[0];
+                            const t = params[1];
+                            return `${p.name}<br/>Actual Cost: ${p.value.toFixed(2)} RMB<br/>Time Cost: ${t.value.toFixed(2)} RMB<br/>Total: ${(p.value + t.value).toFixed(2)} RMB`;
+                          }
+                        },
+                        legend: {
+                          data: [
+                            {
+                              name: 'Actual Cost',
+                              icon: 'rect',
+                              itemStyle: {
+                                color: '#fff',
+                                borderColor: '#000',
+                                borderWidth: 1
+                              }
+                            },
+                            {
+                              name: 'Time Cost',
+                              icon: 'rect',
+                              itemStyle: {
+                                color: {
+                                  type: 'pattern',
+                                  image: createStripePattern('#000', '#fff'),
+                                  repeat: 'repeat'
+                                },
+                                borderColor: '#000',
+                                borderWidth: 0
+                              }
+                            }
+                          ],
+                          itemWidth: 28,
+                          itemHeight: 12,
+                          textStyle: { fontWeight: 500, fontSize: 12 },
+                          top: 0,
+                          left: 'center',
+                          orient: 'horizontal',
+                        },
                         xAxis: {
                           type: 'category',
-                          data: ['Fuel Car', 'EV', 'Robotaxi', 'Taxi', 'eVTOL'],
+                          data: chartData.map(d => d.name),
                           axisLabel: { fontWeight: 600, fontSize: 12 },
                         },
                         yAxis: {
@@ -721,25 +937,47 @@ function App() {
                           nameTextStyle: { fontWeight: 500, fontSize: 12, align: 'left' },
                           axisLabel: { fontWeight: 500, fontSize: 12 },
                         },
-                        series: [{
-                          type: 'bar',
-                          data: chartData.map(d => (d.value !== null && !isNaN(d.value)) ? Number(d.value.toFixed(2)) : null),
-                          itemStyle: {
-                            color: function(params) {
-                              const palette = ['#1890ff','#00c2b3','#00b96b','#ffb300','#ff4d4f'];
-                              return palette[params.dataIndex % palette.length];
+                        series: [
+                          {
+                            name: 'Actual Cost',
+                            type: 'bar',
+                            stack: 'total',
+                            data: chartData.map(d => Number(d.actual.toFixed(2))),
+                            itemStyle: {
+                              color: function(params) {
+                                const palette = ['#1890ff','#00c2b3','#00b96b','#ffb300','#ff4d4f'];
+                                return palette[params.dataIndex % palette.length];
+                              },
+                              borderRadius: [6,6,0,0],
                             },
-                            borderRadius: [6,6,0,0],
+                            barWidth: 38,
+                            label: {
+                              show: false
+                            }
                           },
-                          barWidth: 38,
-                          label: {
-                            show: true,
-                            position: 'top',
-                            fontWeight: 600,
-                            fontSize: 12,
-                            formatter: v => v.value?.toFixed(2)
+                          {
+                            name: 'Time Cost',
+                            type: 'bar',
+                            stack: 'total',
+                            data: chartData.map(d => Number(d.time.toFixed(2))),
+                            itemStyle: {
+                              color: function(params) {
+                                const palette = ['#1890ff','#00c2b3','#00b96b','#ffb300','#ff4d4f'];
+                                const color = palette[params.dataIndex % palette.length];
+                                return {
+                                  type: 'pattern',
+                                  image: createStripePattern(color),
+                                  repeat: 'repeat'
+                                };
+                              },
+                              borderRadius: [6,6,0,0],
+                            },
+                            barWidth: 38,
+                            label: {
+                              show: false
+                            }
                           }
-                        }]
+                        ]
                       }}
                     />
                   </div>
@@ -800,7 +1038,7 @@ function App() {
             </Tabs.TabPane>
           </Tabs>
         </Card>
-        <Card title="eVTOL Cost" className="result-card" bodyStyle={{height: 320, overflowY: 'auto', padding: '0 24px'}}>
+        <Card title="eVTOL Cost" className="result-card" bodyStyle={{height: '27vh', overflowY: 'auto', padding: '0 24px'}}>
           {straight ? (
             (() => {
               const handleParam = (key, val) => setEvtolParams(p => ({ ...p, [key]: val }));
@@ -845,12 +1083,16 @@ function App() {
                       <div style={{display:'flex', justifyContent:'space-between'}}><span>Parking cost</span><span style={{fontWeight:500}}>{parkingCost.toFixed(2)} RMB</span></div>
                       <div style={{display:'flex', justifyContent:'space-between'}}><span>Maintenance</span><span style={{fontWeight:500}}>{maintenanceCost.toFixed(2)} RMB</span></div>
                       <div style={{display:'flex', justifyContent:'space-between'}}><span>Energy</span><span style={{fontWeight:500}}>{energyCost.toFixed(2)} RMB</span></div>
-                      <div style={{display:'flex', justifyContent:'space-between', borderTop:'1px solid #eee', marginTop:8, paddingTop:8}}><span style={{fontWeight:700, fontSize:16}}>Total Cost</span><span style={{fontWeight:700, color:'#1976d2', fontSize:16}}>{totalCost.toFixed(2)} RMB</span></div>
+                      <div style={{display:'flex', justifyContent:'space-between', borderTop:'1px solid #eee', marginTop:8, paddingTop:8}}><span style={{fontWeight:700, fontSize:16}}>Total Operation Cost</span><span style={{fontWeight:700, color:'#1976d2', fontSize:16}}>{totalCost.toFixed(2)} RMB</span></div>
+                      <div style={{display:'flex', justifyContent:'space-between', marginTop:0.5}}>
+                        <span style={{fontWeight:600, fontSize:14}}> + Time Value</span>
+                        <span style={{fontWeight:600, fontSize:14}}>{(flightHours * hourValue).toFixed(2)} RMB</span>
+                      </div>
                     </div>
                   </div>
                   <div style={{fontSize:13, color:'#888', marginTop:8}}>
                     <span style={{cursor: 'pointer'}} onClick={() => toggleAssumption('evtol')}>
-                      {showAssumptions.evtol ? '▼' : '▶'} Assumptions
+                      {showAssumptions.evtol ? '▼' : '▶'} Custimize Assumptions
                     </span>
                     {showAssumptions.evtol && (
                       <div style={{color:'#888', marginTop: 2}}>
@@ -902,7 +1144,7 @@ function App() {
             })()
           ) : 'No data'}
         </Card>
-        <Card title="Ground Transport" className="result-card" bodyStyle={{height: 360, overflowY: 'auto', padding: '0 24px'}}>
+        <Card title="Ground Transport" className="result-card" bodyStyle={{height: '29vh', overflowY: 'auto', padding: '0 24px'}}>
           {/* 统一展示距离、时长、非直线系数 */}
           {driving && straight && (
             <div style={{marginBottom: 0, padding: '8px 0', borderBottom: '1px solid #eee', fontSize: 14, color: '#333'}}>
@@ -929,7 +1171,7 @@ function App() {
                 const depreciation = fuelPurchaseCost / (fuelYears * fuelAnnualMileage) * distanceKm;
                 const parkingCost = (fuelParkingMonthly * 12 / fuelAnnualMileage) * distanceKm;
                 const timeValue = durationHour * hourValue;
-                const totalCost = fuelCost + tollCost + depreciation + parkingCost + timeValue;
+                const totalCost = fuelCost + tollCost + depreciation + parkingCost;
                 // --- UI ---
                 return (
                   <div style={{fontSize:14}}>
@@ -940,13 +1182,17 @@ function App() {
                         <div style={{display:'flex', justifyContent:'space-between'}}><span>Tolls</span><span style={{fontWeight:500}}>{tollCost.toFixed(2)} RMB</span></div>
                         <div style={{display:'flex', justifyContent:'space-between'}}><span>Depreciation</span><span style={{fontWeight:500}}>{depreciation.toFixed(2)} RMB</span></div>
                         <div style={{display:'flex', justifyContent:'space-between'}}><span>Parking</span><span style={{fontWeight:500}}>{parkingCost.toFixed(2)} RMB</span></div>
-                        <div style={{display:'flex', justifyContent:'space-between'}}><span>Time value</span><span style={{fontWeight:500}}>{timeValue.toFixed(2)} RMB</span></div>
-                        <div style={{display:'flex', justifyContent:'space-between', borderTop:'1px solid #eee', marginTop:8, paddingTop:8}}><span style={{fontWeight:600}}>Estimated cost</span><span style={{fontWeight:600, color:'#d32f2f'}}>{totalCost.toFixed(2)} RMB</span></div>
+
+                        <div style={{display:'flex', justifyContent:'space-between', borderTop:'1px solid #eee', marginTop:8, paddingTop:8}}><span style={{fontWeight:700,fontSize:16}}>Estimated cost</span><span style={{fontWeight:700,fontSize:16, color:'#1976d2'}}>{totalCost.toFixed(2)} RMB</span></div>
+                        <div style={{display:'flex', justifyContent:'space-between'}}>
+                          <span style={{fontWeight:600, fontSize:14}}> + Time Value</span>
+                          <span style={{fontWeight:600, fontSize:14}}>{timeValue.toFixed(2)} RMB</span>
+                        </div>
                       </div>
                     </div>
                     <div style={{fontSize:13, color:'#888', marginTop:8}}>
                       <span style={{cursor: 'pointer'}} onClick={() => toggleAssumption('fuel')}>
-                        {showAssumptions.fuel ? '▼' : '▶'} Assumptions
+                        {showAssumptions.fuel ? '▼' : '▶'} Custimize Assumptions
                       </span>
                       {showAssumptions.fuel && (
                         <div style={{color:'#888', marginTop: 2}}>
@@ -993,7 +1239,7 @@ function App() {
                 const depreciation = evPurchaseCost / (evYears * evAnnualMileage) * distanceKm;
                 const parkingCost = (evParkingMonthly * 12 / evAnnualMileage) * distanceKm;
                 const timeValue = durationHour * hourValue;
-                const totalCost = energyCost + tolls + depreciation + parkingCost + timeValue;
+                const totalCost = energyCost + tolls + depreciation + parkingCost;
                 return (
                   <div style={{fontSize:14}}>
                     <div style={{marginBottom:8}}>
@@ -1003,13 +1249,17 @@ function App() {
                         <div style={{display:'flex', justifyContent:'space-between'}}><span>Tolls</span><span style={{fontWeight:500}}>{tolls.toFixed(2)} RMB</span></div>
                         <div style={{display:'flex', justifyContent:'space-between'}}><span>Depreciation</span><span style={{fontWeight:500}}>{depreciation.toFixed(2)} RMB</span></div>
                         <div style={{display:'flex', justifyContent:'space-between'}}><span>Parking</span><span style={{fontWeight:500}}>{parkingCost.toFixed(2)} RMB</span></div>
-                        <div style={{display:'flex', justifyContent:'space-between'}}><span>Time value</span><span style={{fontWeight:500}}>{timeValue.toFixed(2)} RMB</span></div>
-                        <div style={{display:'flex', justifyContent:'space-between', borderTop:'1px solid #eee', marginTop:8, paddingTop:8}}><span style={{fontWeight:600}}>Estimated cost</span><span style={{fontWeight:600, color:'#1976d2'}}>{totalCost.toFixed(2)} RMB</span></div>
+
+                        <div style={{display:'flex', justifyContent:'space-between', borderTop:'1px solid #eee', marginTop:8, paddingTop:8}}><span style={{fontWeight:700,fontSize:16}}>Estimated cost</span><span style={{fontWeight:700, fontSize:16,color:'#1976d2'}}>{totalCost.toFixed(2)} RMB</span></div>
+                        <div style={{display:'flex', justifyContent:'space-between'}}>
+                          <span style={{fontWeight:600, fontSize:14}}> + Time Value</span>
+                          <span style={{fontWeight:600, fontSize:14}}>{timeValue.toFixed(2)} RMB</span>
+                        </div>
                       </div>
                     </div>
                     <div style={{fontSize:13, color:'#888', marginTop:8}}>
                       <span style={{cursor: 'pointer'}} onClick={() => toggleAssumption('ev')}>
-                        {showAssumptions.ev ? '▼' : '▶'} Assumptions
+                        {showAssumptions.ev ? '▼' : '▶'} Custimize Assumptions
                       </span>
                       {showAssumptions.ev && (
                         <div style={{color:'#888', marginTop: 2}}>
@@ -1066,11 +1316,12 @@ function App() {
                 const taxCost = params.taxPerYear / params.annualMileage * distanceKm;
                 const tireCost = params.tirePerYear / params.annualMileage * distanceKm;
                 const remoteMonitorCost = distanceKm * params.remoteMonitorPerKm;
-                const timeValue = durationMin / 60 * hourValue;
-                const totalOperatingCost = energyCost + chargingServiceCost + parkingCost + tollCost + depreciation + computeCost + maintenanceCost + insuranceCost + taxCost + tireCost + remoteMonitorCost + timeValue;
+                const totalOperatingCost = energyCost + chargingServiceCost + parkingCost + tollCost + depreciation + computeCost + maintenanceCost + insuranceCost + taxCost + tireCost + remoteMonitorCost;
                 const operatorServiceFee = totalOperatingCost * params.operatorServiceRate;
                 const adRevenue = params.adRevenuePerKm * distanceKm;
                 const passengerFare = totalOperatingCost + operatorServiceFee - adRevenue;
+                
+                const timeValue = durationMin / 60 * hourValue;
                 // --- UI ---
                 return (
                   <div style={{fontSize:14}}>
@@ -1088,7 +1339,7 @@ function App() {
                         <div style={{display:'flex', justifyContent:'space-between'}}><span>Tax</span><span style={{fontWeight:500}}>{taxCost.toFixed(2)} RMB</span></div>
                         <div style={{display:'flex', justifyContent:'space-between'}}><span>Tire & wear</span><span style={{fontWeight:500}}>{tireCost.toFixed(2)} RMB</span></div>
                         <div style={{display:'flex', justifyContent:'space-between'}}><span>Remote monitoring</span><span style={{fontWeight:500}}>{remoteMonitorCost.toFixed(2)} RMB</span></div>
-                        <div style={{display:'flex', justifyContent:'space-between'}}><span>Time value</span><span style={{fontWeight:500}}>{timeValue.toFixed(2)} RMB</span></div>
+
                         <div style={{display:'flex', justifyContent:'space-between', borderTop:'1px solid #eee', marginTop:8, paddingTop:8}}><span style={{fontWeight:600}}>Total operating cost</span><span style={{fontWeight:600, color:'#1976d2'}}>{totalOperatingCost.toFixed(2)} RMB</span></div>
                       </div>
                     </div>
@@ -1097,12 +1348,16 @@ function App() {
                       <div style={{margin:'8px 0 0 0', padding:'8px', background:'#f6f8fa', borderRadius:6, border:'1px solid #f0f0f0'}}>
                         <div style={{display:'flex', justifyContent:'space-between'}}><span>Operator service fee</span><span style={{fontWeight:500}}>{operatorServiceFee.toFixed(2)} RMB</span></div>
                         <div style={{display:'flex', justifyContent:'space-between'}}><span>Ad revenue</span><span style={{fontWeight:500}}>-{adRevenue.toFixed(2)} RMB</span></div>
-                        <div style={{display:'flex', justifyContent:'space-between', borderTop:'1px solid #eee', marginTop:8, paddingTop:8}}><span style={{fontWeight:700, fontSize:16}}>Passenger fare</span><span style={{fontWeight:700, color:'#d32f2f', fontSize:16}}>{passengerFare.toFixed(2)} RMB</span></div>
+                        <div style={{display:'flex', justifyContent:'space-between', borderTop:'1px solid #eee', marginTop:8, paddingTop:8}}><span style={{fontWeight:700, fontSize:16}}>Passenger Fare</span><span style={{fontWeight:700, color:'#d32f2f', fontSize:16}}>{passengerFare.toFixed(2)} RMB</span></div>
+                        <div style={{display:'flex', justifyContent:'space-between'}}>
+                          <span style={{fontWeight:600, fontSize:14}}> + Time Value</span>
+                          <span style={{fontWeight:600, fontSize:14}}>{timeValue.toFixed(2)} RMB</span>
+                        </div>
                       </div>
                     </div>
                     <div style={{fontSize:13, color:'#888', marginTop:8}}>
                       <span style={{cursor: 'pointer'}} onClick={() => toggleAssumption('robotaxi')}>
-                        {showAssumptions.robotaxi ? '▼' : '▶'} Assumptions
+                        {showAssumptions.robotaxi ? '▼' : '▶'} Custimize Assumptions
                       </span>
                       {showAssumptions.robotaxi && (
                         <div style={{color:'#888', marginTop: 2}}>
@@ -1175,7 +1430,7 @@ function App() {
                     if (high > 0) {
                       meterFare += high * highRate;
                       fareDetail.push(`Above 15 km (${high.toFixed(2)} km): ${(high * highRate).toFixed(2)} RMB`);
-                    }
+                }
                   }
                 }
                 // 等时费
@@ -1184,8 +1439,8 @@ function App() {
                 fareDetail.push(`Waiting time: ${timeFee.toFixed(2)} RMB`);
                 // 时间价值
                 const timeValueTaxi = durationMin / 60 * hourValue;
-                meterFare += timeValueTaxi;
-                fareDetail.push(`Time value: ${timeValueTaxi.toFixed(2)} RMB`);
+                // meterFare += timeValueTaxi;
+                // fareDetail.push(`Time value: ${timeValueTaxi.toFixed(2)} RMB`);
                 // 去程高速费
                 meterFare += tolls;
                 fareDetail.push(`Toll (outbound): ${tolls.toFixed(2)} RMB`);
@@ -1213,11 +1468,15 @@ function App() {
                           </>
                         )}
                         <div style={{display:'flex', justifyContent:'space-between', borderTop:'1px solid #eee', marginTop:8, paddingTop:8}}><span style={{fontWeight:700, fontSize:16}}>Passenger Fare</span><span style={{fontWeight:700, color:'#d32f2f', fontSize:16}}>{totalFare.toFixed(2)} RMB</span></div>
+                        <div style={{display:'flex', justifyContent:'space-between'}}>
+                          <span style={{fontWeight:600, fontSize:14}}> + Time Value</span>
+                          <span style={{fontWeight:600, fontSize:14}}>{timeValueTaxi.toFixed(2)} RMB</span>
+                        </div>
                       </div>
                     </div>
                     <div style={{fontSize:13, color:'#888', marginTop:8}}>
                     <span style={{cursor: 'pointer'}} onClick={() => toggleAssumption('taxi')}>
-                      {showAssumptions.taxi ? '▼' : '▶'} Assumptions
+                      {showAssumptions.taxi ? '▼' : '▶'} Custimize Assumptions
                     </span>
                     {showAssumptions.taxi && (
                         <div style={{color:'#888', marginTop: 2}}>
@@ -1324,7 +1583,7 @@ function App() {
             gap: 8,
             minWidth: 340
           }}>
-            <span style={{ fontWeight: 600, fontSize: 15, marginRight: 8, whiteSpace: 'nowrap' }}>
+            <span style={{ fontWeight: 600, fontSize: 15, color: '#333', marginRight: 8, whiteSpace: 'nowrap' }}>
               Total Monthly Income of All Passengers
             </span>
             <Input
@@ -1452,3 +1711,21 @@ function App() {
 }
 
 export default App;
+
+// 在组件外部添加createStripePattern函数
+function createStripePattern(stripeColor = '#000', bgColor = '#fff') {
+  const size = 8;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, size, size);
+  ctx.strokeStyle = stripeColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, size);
+  ctx.lineTo(size, 0);
+  ctx.stroke();
+  return canvas;
+}
