@@ -318,76 +318,48 @@ function App() {
   // 构建AI分析prompt
   const buildAIPrompt = useCallback(() => {
     if (!results) return '';
-    // 驾车
-    const driving = results.driving.route && results.driving.route.paths && results.driving.route.paths[0];
-    const drivingDistance = driving ? (driving.distance / 1000).toFixed(2) : 'N/A';
-    const drivingDuration = driving ? Math.round(driving.duration / 60) : 'N/A';
-    // 各方式成本
-    let drivingCost = 'N/A', drivingDurationMin = null;
-    if (driving) {
-      const tolls = Number(driving.tolls || 0);
+    // 取各方式actual cost和time value
+    // Fuel Car
+    let fuelCarActual = 'N/A', fuelCarTime = 'N/A';
+    let evActual = 'N/A', evTime = 'N/A';
+    let robotaxiActual = 'N/A', robotaxiTime = 'N/A';
+    let taxiActual = 'N/A', taxiTime = 'N/A';
+    let evtolActual = 'N/A', evtolTime = 'N/A';
+    // Fuel Car
+    if (results.driving?.route?.paths?.[0]) {
+      const driving = results.driving.route.paths[0];
       const distanceKm = driving.distance / 1000;
-      const L_100km = 8.0; // L/100km
-      const P_fuel = 7.6;  // RMB/L
-      const C_maint_km = 0.07; // RMB/km
-      const C_annual_fixed = 6600; // RMB/year
-      const D_annual = 12000; // km/year
-      const variablePerKm = (L_100km / 100) * P_fuel + C_maint_km;
-      const fixedPerKm = C_annual_fixed / D_annual;
-      const economicCost = (variablePerKm + fixedPerKm) * distanceKm + tolls;
       const durationHour = driving.duration / 3600;
-      const timeCost = durationHour * hourValue;
-      const totalCost = economicCost + timeCost;
-      drivingCost = totalCost.toFixed(2);
-      drivingDurationMin = Math.round(driving.duration / 60);
+      const fuelCost = (fuelConsumption / 100) * fuelPrice * distanceKm;
+      const tollCost = Number(driving.tolls || 0);
+      const depreciation = fuelPurchaseCost / (fuelYears * fuelAnnualMileage) * distanceKm;
+      const parkingCost = (fuelParkingMonthly * 12 / fuelAnnualMileage) * distanceKm;
+      const timeValue = durationHour * hourValue;
+      const totalCost = fuelCost + tollCost + depreciation + parkingCost;
+      fuelCarActual = totalCost.toFixed(2);
+      fuelCarTime = timeValue.toFixed(2);
     }
-    let evCost = 'N/A', evDurationMin = null;
-    if (driving) {
-      const tolls = Number(driving.tolls || 0);
+    // EV
+    if (results.driving?.route?.paths?.[0]) {
+      const driving = results.driving.route.paths[0];
       const distanceKm = driving.distance / 1000;
-      const evEnergyPer100km = 15;
-      const evElectricityPrice = 0.8;
-      const C_annual_fixed_ev = 4000; // RMB/year
-      const D_annual_ev = 12000; // km/year
-      const variablePerKmEV = (evEnergyPer100km / 100) * evElectricityPrice;
-      const fixedPerKmEV = C_annual_fixed_ev / D_annual_ev;
-      const economicCostEV = (variablePerKmEV + fixedPerKmEV) * distanceKm + tolls;
       const durationHour = driving.duration / 3600;
-      const timeCostEV = durationHour * hourValue;
-      const totalCostEV = economicCostEV + timeCostEV;
-      evCost = totalCostEV.toFixed(2);
-      evDurationMin = Math.round(driving.duration / 60);
-    }
-    let taxiCost = 'N/A';
-    if (driving) {
-      const tolls = Number(driving.tolls || 0);
-      const distanceKm = driving.distance / 1000;
-      const durationMin = driving.duration / 60;
-      let distanceCost = 0;
-      let emptyReturnCost = 0;
-      if (distanceKm <= 3) {
-        distanceCost = 10;
-      } else if (distanceKm <= 50) {
-        distanceCost = 10 + (distanceKm - 3) * 2.5;
-      } else {
-        distanceCost = 10 + (50 - 3) * 2.5 + (distanceKm - 50) * 2.5;
-        emptyReturnCost = (distanceKm - 50) * 2.5;
-      }
-      const timeCost = durationMin * 0.5;
-      const economicCost = distanceCost + timeCost + emptyReturnCost + tolls;
-      const durationHour = driving.duration / 3600;
-      const timeValueCost = durationHour * hourValue;
-      const totalCost = economicCost + timeValueCost;
-      taxiCost = totalCost.toFixed(2);
+      const energyCost = (evConsumption / 100) * evElectricityPrice * distanceKm;
+      const tollCost = Number(driving.tolls || 0);
+      const depreciation = evPurchaseCost / (evYears * evAnnualMileage) * distanceKm;
+      const parkingCost = (evParkingMonthly * 12 / evAnnualMileage) * distanceKm;
+      const timeValue = durationHour * hourValue;
+      const totalCost = energyCost + tollCost + depreciation + parkingCost;
+      evActual = totalCost.toFixed(2);
+      evTime = timeValue.toFixed(2);
     }
     // Robotaxi
-    let robotaxiCost = 'N/A';
-    if (driving) {
+    if (results.driving?.route?.paths?.[0]) {
+      const driving = results.driving.route.paths[0];
       const params = robotaxiParams;
       const tolls = Number(driving.tolls || 0);
       const distanceKm = driving.distance / 1000;
       const durationMin = Math.round(driving.duration / 60);
-      // --- Cost calculations (copy from robotaxi tab) ---
       const energyCost = distanceKm * params.energyPer100km * params.electricityPrice / 100;
       const chargingServiceCost = distanceKm * params.energyPer100km * params.chargingServiceFeePerKwh / 100;
       const parkingCost = distanceKm * params.parkingFeePer100km / 100;
@@ -403,43 +375,81 @@ function App() {
       const totalOperatingCost = energyCost + chargingServiceCost + parkingCost + tollCost + depreciation + computeCost + maintenanceCost + insuranceCost + taxCost + tireCost + remoteMonitorCost + timeValue;
       const operatorServiceFee = totalOperatingCost * params.operatorServiceRate;
       const adRevenue = params.adRevenuePerKm * distanceKm;
-      robotaxiCost = totalOperatingCost + operatorServiceFee - adRevenue;
+      const passengerFare = totalOperatingCost + operatorServiceFee - adRevenue;
+      robotaxiActual = passengerFare.toFixed(2);
+      robotaxiTime = timeValue.toFixed(2);
+    }
+    // Taxi
+    if (results.driving?.route?.paths?.[0]) {
+      const driving = results.driving.route.paths[0];
+      const tolls = Number(driving.tolls || 0);
+      const distanceKm = driving.distance / 1000;
+      const durationMin = driving.duration / 60;
+      let meterFare = baseFare;
+      if (distanceKm > baseDist) {
+        const mid = Math.min(distanceKm, midDist) - baseDist;
+        if (mid > 0) meterFare += mid * midRate;
+        if (distanceKm > midDist) {
+          const high = distanceKm - midDist;
+          if (high > 0) meterFare += high * highRate;
+        }
+      }
+      const timeFee = durationMin * timeRate;
+      meterFare += timeFee;
+      const timeValueTaxi = durationMin / 60 * hourValue;
+      meterFare += timeValueTaxi;
+      meterFare += tolls;
+      let returnFare = 0, returnToll = 0;
+      if (distanceKm > returnDist) {
+        returnToll = tolls;
+        returnFare = meterFare * returnRatio;
+      }
+      const totalFare = meterFare + (distanceKm > returnDist ? (returnToll + returnFare) : 0);
+      taxiActual = totalFare.toFixed(2);
+      taxiTime = timeValueTaxi.toFixed(2);
     }
     // eVTOL
-    let evtolCost = 'N/A', evtolTime = 'N/A', evtolDistance = 'N/A', evtolTimeMin = null;
-    if (results.straight && results.straight.results && results.straight.results[0]) {
+    if (results.straight?.results?.[0]) {
       const straight = results.straight.results[0];
-      const distance = straight.distance; // meters
-      const cruiseSpeed = 200 * 1000 / 3600; // m/s
-      const takeoffLandSpeed = 7.5; // m/s
-      const cruiseAltitude = 800; // m
+      const distance = straight.distance;
+      const cruiseSpeed = 200 * 1000 / 3600;
+      const cruiseAltitude = 800;
+      const takeoffLandSpeed = 7.5;
       const takeoffTime = cruiseAltitude / takeoffLandSpeed;
       const landingTime = cruiseAltitude / takeoffLandSpeed;
       const cruiseDistance = Math.max(0, distance - 2 * cruiseAltitude);
       const cruiseTime = cruiseDistance / cruiseSpeed;
-      const totalTime = takeoffTime + cruiseTime + landingTime; // seconds
-      const distanceKm = distance / 1000;
-      const tripHours = totalTime / 3600; // hours
-      // All cost parameters in RMB
-      const C_energy = 192; // Energy cost per hour, RMB/h (40 AUD * 4.8)
-      const C_maint = 1008; // Maintenance cost per hour, RMB/h (210 AUD * 4.8)
-      const C_variable = C_energy + C_maint; // Variable cost per hour, RMB/h
-      const C_annual_fixed = 2880000; // Annual total fixed cost, RMB/year (600000 AUD * 4.8)
-      const annual_flight_hours = 3000; // hours/year
-      const N_trips_per_year = tripHours > 0 ? Math.floor(annual_flight_hours / tripHours) : 0;
-      const variableCost = C_variable * tripHours;
-      const fixedCost = N_trips_per_year > 0 ? C_annual_fixed / N_trips_per_year : 0;
-      const timeCost = tripHours * hourValue;
-      const totalCost = variableCost + fixedCost + timeCost;
-      evtolCost = totalCost.toFixed(2);
-      evtolDistance = distanceKm.toFixed(2);
-      evtolTime = Math.round(totalTime / 60); // minutes
-      evtolTimeMin = totalTime / 60;
-      evtolTime = Math.round(evtolTimeMin); // minutes
+      const totalTime = takeoffTime + cruiseTime + landingTime;
+      const flightHours = totalTime / 3600;
+      const p = evtolParams;
+      const depreciation = p.aircraftPrice / (p.aircraftLifespanYears * p.annualFlightHours) * flightHours;
+      const computeCost = p.computeCostPerHour * flightHours;
+      const airwayCost = p.airwayCostPerKm * (distance / 1000);
+      const vertiportCost = p.vertiportCostPerFlight;
+      const parkingCost = p.parkingCostPerHour * flightHours;
+      const maintenanceCost = p.maintenancePerHour * flightHours;
+      const energyCost = p.energyPerHour * flightHours;
+      const totalCost = depreciation + computeCost + airwayCost + vertiportCost + parkingCost + maintenanceCost + energyCost;
+      const timeValue = flightHours * hourValue;
+      evtolActual = totalCost.toFixed(2);
+      evtolTime = timeValue.toFixed(2);
     }
-    // 新版英文prompt
-    return `You are a transportation expert. Please analyze the passenger cost for the following five travel modes for this route (all costs in RMB):\n\n- Fuel Car: total cost = ${drivingCost}\n- Electric Car: total cost = ${evCost}\n- Robotaxi: passenger fare = ${robotaxiCost}\n- Taxi: passenger fare = ${taxiCost}\n- eVTOL: total cost = ${evtolCost}\n\n1. Please compare the above costs and, based on your own knowledge, recommend a reasonable price for eVTOL on this route.\n2. In what scenarios or for what types of users would you most recommend using eVTOL?\n3. Please answer in English, and use markdown format for your response.`;
-  }, [results]);
+    // 新版prompt
+    return `You are a transportation economics expert. Please analyze the following cost data for this route (all in RMB):\n\n` +
+      `| Mode        | Actual Cost / Passenger Fare | Time Value |\n` +
+      `|-------------|-----------------------------|------------|\n` +
+      `| Fuel Car    | ${fuelCarActual}            | ${fuelCarTime} |\n` +
+      `| EV          | ${evActual}                 | ${evTime}      |\n` +
+      `| Robotaxi    | ${robotaxiActual}           | ${robotaxiTime}|\n` +
+      `| Taxi        | ${taxiActual}               | ${taxiTime}    |\n` +
+      `| eVTOL       | ${evtolActual}              | ${evtolTime}   |\n` +
+      `\n` +
+      `1. Please compare the above modes based on the principle of generalized cost, marginal cost, and other relevant economic theories.\n` +
+      `2. For each mode, discuss the advantages and disadvantages, considering both actual cost and time value.\n` +
+      `3. For eVTOL, provide a reasonable pricing analysis based on the above data and economic theory.\n` +
+      `4. Please cite relevant literature or sources (with links if possible) to support your analysis.\n` +
+      `5. Answer in English and use markdown format.`;
+  }, [results, fuelConsumption, fuelPrice, fuelPurchaseCost, fuelYears, fuelAnnualMileage, fuelParkingMonthly, evConsumption, evElectricityPrice, evPurchaseCost, evYears, evAnnualMileage, evParkingMonthly, robotaxiParams, baseFare, baseDist, midDist, midRate, highRate, returnDist, timeRate, returnRatio, evtolParams, hourValue]);
 
   // 只保留DeepSeek
   const fetchAIAnalysis = useCallback(async () => {
