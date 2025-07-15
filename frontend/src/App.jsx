@@ -111,7 +111,7 @@ function App() {
         setMap(null);
       }
       // 获取用户地理位置
-      const defaultCenter = [116.397428, 39.90923]; // 北京
+      const defaultCenter = [113.541827,22.940343]; // GBA
       const createMap = (center) => {
         const m = new window.AMap.Map('map', {
           resizeEnable: true,
@@ -388,24 +388,33 @@ function App() {
       let meterFare = baseFare;
       if (distanceKm > baseDist) {
         const mid = Math.min(distanceKm, midDist) - baseDist;
-        if (mid > 0) meterFare += mid * midRate;
+        if (mid > 0) {
+          meterFare += mid * midRate;
+        }
         if (distanceKm > midDist) {
           const high = distanceKm - midDist;
-          if (high > 0) meterFare += high * highRate;
+          if (high > 0) {
+            meterFare += high * highRate;
+          }
         }
       }
+      // 等时费
       const timeFee = durationMin * timeRate;
       meterFare += timeFee;
+      // 时间价值
       const timeValueTaxi = durationMin / 60 * hourValue;
-      meterFare += timeValueTaxi;
+      // meterFare 不加时间价值
+      // 去程高速费
       meterFare += tolls;
+      // 返程部分
       let returnFare = 0, returnToll = 0;
       if (distanceKm > returnDist) {
-        returnToll = tolls;
+        returnToll = tolls; // 假设回程高速费=去程高速费
         returnFare = meterFare * returnRatio;
       }
-      const totalFare = meterFare + (distanceKm > returnDist ? (returnToll + returnFare) : 0);
-      taxiActual = totalFare.toFixed(2);
+      // 总价（不含时间价值）
+      const passengerFare = meterFare + (distanceKm > returnDist ? (returnToll + returnFare) : 0);
+      taxiActual = passengerFare.toFixed(2);
       taxiTime = timeValueTaxi.toFixed(2);
     }
     // eVTOL
@@ -631,7 +640,8 @@ function App() {
       const totalOperatingCost = energyCost + chargingServiceCost + parkingCost + tollCost + depreciation + computeCost + maintenanceCost + insuranceCost + taxCost + tireCost + remoteMonitorCost + timeValue;
       const operatorServiceFee = totalOperatingCost * params.operatorServiceRate;
       const adRevenue = params.adRevenuePerKm * distanceKm;
-      robotaxiFare = totalOperatingCost + operatorServiceFee - adRevenue;
+      const passengerFare = totalOperatingCost + operatorServiceFee - adRevenue;
+      robotaxiFare = passengerFare; // 保持为数字
     }
     // Taxi
     let taxiFare = null;
@@ -657,7 +667,7 @@ function App() {
       meterFare += timeFee;
       // 时间价值
       const timeValueTaxi = durationMin / 60 * hourValue;
-      meterFare += timeValueTaxi;
+      // meterFare 不加时间价值
       // 去程高速费
       meterFare += tolls;
       // 返程部分
@@ -666,8 +676,9 @@ function App() {
         returnToll = tolls; // 假设回程高速费=去程高速费
         returnFare = meterFare * returnRatio;
       }
-      // 总价
-      taxiFare = meterFare + (distanceKm > returnDist ? (returnToll + returnFare) : 0);
+      // 总价（不含时间价值）
+      const passengerFare = meterFare + (distanceKm > returnDist ? (returnToll + returnFare) : 0);
+      taxiFare = passengerFare; // 保持为数字
     }
     // eVTOL
     let evtolTotalCost = null;
@@ -702,353 +713,360 @@ function App() {
 
     return (
       <div className="cards-panel">
-        <Card title="Analysis" className="result-card" bodyStyle={{height: '28vh', overflowY: 'auto', padding: '0 24px'}}>
-          <Tabs defaultActiveKey="barchart">
-            <Tabs.TabPane tab="Price Analysis" key="barchart">
-              {(() => {
-                // 计算各交通方式的实际成本和时间成本
-                const chartData = [
-                  {
-                    name: 'Fuel Car',
-                    actual: (() => {
-                      const driving = results?.driving?.route?.paths?.[0];
-                      if (!driving) return 0;
-                      const distanceKm = driving.distance / 1000;
-                      const durationHour = driving.duration / 3600;
-                      const fuelCost = (fuelConsumption / 100) * fuelPrice * distanceKm;
-                      const tollCost = Number(driving.tolls || 0);
-                      const depreciation = fuelPurchaseCost / (fuelYears * fuelAnnualMileage) * distanceKm;
-                      const parkingCost = (fuelParkingMonthly * 12 / fuelAnnualMileage) * distanceKm;
-                      const timeValue = durationHour * hourValue;
-                      const totalCost = fuelCost + tollCost + depreciation + parkingCost;
-                      return totalCost;
-                    })(),
-                    time: (() => {
-                      const driving = results?.driving?.route?.paths?.[0];
-                      if (!driving) return 0;
-                      const distanceKm = driving.distance / 1000;
-                      const durationHour = driving.duration / 3600;
-                      const fuelCost = (fuelConsumption / 100) * fuelPrice * distanceKm;
-                      const tollCost = Number(driving.tolls || 0);
-                      const depreciation = fuelPurchaseCost / (fuelYears * fuelAnnualMileage) * distanceKm;
-                      const parkingCost = (fuelParkingMonthly * 12 / fuelAnnualMileage) * distanceKm;
-                      const timeValue = durationHour * hourValue;
-                      return timeValue;
-                    })(),
-                  },
-                  {
-                    name: 'EV',
-                    actual: (() => {
-                      const driving = results?.driving?.route?.paths?.[0];
-                      if (!driving) return 0;
-                      const distanceKm = driving.distance / 1000;
-                      const durationHour = driving.duration / 3600;
-                      const energyCost = (evConsumption / 100) * evElectricityPrice * distanceKm;
-                      const tollCost = Number(driving.tolls || 0);
-                      const depreciation = evPurchaseCost / (evYears * evAnnualMileage) * distanceKm;
-                      const parkingCost = (evParkingMonthly * 12 / evAnnualMileage) * distanceKm;
-                      const timeValue = durationHour * hourValue;
-                      const totalCost = energyCost + tollCost + depreciation + parkingCost;
-                      return totalCost;
-                    })(),
-                    time: (() => {
-                      const driving = results?.driving?.route?.paths?.[0];
-                      if (!driving) return 0;
-                      const distanceKm = driving.distance / 1000;
-                      const durationHour = driving.duration / 3600;
-                      const energyCost = (evConsumption / 100) * evElectricityPrice * distanceKm;
-                      const tollCost = Number(driving.tolls || 0);
-                      const depreciation = evPurchaseCost / (evYears * evAnnualMileage) * distanceKm;
-                      const parkingCost = (evParkingMonthly * 12 / evAnnualMileage) * distanceKm;
-                      const timeValue = durationHour * hourValue;
-                      return timeValue;
-                    })(),
-                  },
-                  {
-                    name: 'Robotaxi',
-                    actual: (() => {
-                      const driving = results?.driving?.route?.paths?.[0];
-                      if (!driving) return 0;
-                      const params = robotaxiParams;
-                      const tolls = Number(driving.tolls || 0);
-                      const distanceKm = driving.distance / 1000;
-                      const durationMin = Math.round(driving.duration / 60);
-                      // --- Cost calculations (copy from robotaxi tab) ---
-                      const energyCost = distanceKm * params.energyPer100km * params.electricityPrice / 100;
-                      const chargingServiceCost = distanceKm * params.energyPer100km * params.chargingServiceFeePerKwh / 100;
-                      const parkingCost = distanceKm * params.parkingFeePer100km / 100;
-                      const tollCost = distanceKm * params.tollPerKm + tolls;
-                      const depreciation = params.vehiclePrice / params.depreciationYears / params.annualMileage * distanceKm;
-                      const computeCost = distanceKm * params.computeCostPerKm;
-                      const maintenanceCost = distanceKm * params.maintenancePerKm;
-                      const insuranceCost = params.insurancePerYear / params.annualMileage * distanceKm;
-                      const taxCost = params.taxPerYear / params.annualMileage * distanceKm;
-                      const tireCost = params.tirePerYear / params.annualMileage * distanceKm;
-                      const remoteMonitorCost = distanceKm * params.remoteMonitorPerKm;
-                      const timeValue = durationMin / 60 * hourValue;
-                      const totalOperatingCost = energyCost + chargingServiceCost + parkingCost + tollCost + depreciation + computeCost + maintenanceCost + insuranceCost + taxCost + tireCost + remoteMonitorCost + timeValue;
-                      const operatorServiceFee = totalOperatingCost * params.operatorServiceRate;
-                      const adRevenue = params.adRevenuePerKm * distanceKm;
-                      const passengerFare = totalOperatingCost + operatorServiceFee - adRevenue;
-                      return passengerFare;
-                    })(),
-                    time: (() => {
-                      const driving = results?.driving?.route?.paths?.[0];
-                      if (!driving) return 0;
-                      const durationMin = Math.round(driving.duration / 60);
-                      const timeValue = durationMin / 60 * hourValue;
-                      return timeValue;
-                    })(),
-                  },
-                  {
-                    name: 'Taxi',
-                    actual: (() => {
-                      const driving = results?.driving?.route?.paths?.[0];
-                      if (!driving) return 0;
-                      const tolls = Number(driving.tolls || 0);
-                      const distanceKm = driving.distance / 1000;
-                      const durationMin = driving.duration / 60;
-                      let meterFare = baseFare;
-                      if (distanceKm > baseDist) {
-                        const mid = Math.min(distanceKm, midDist) - baseDist;
-                        if (mid > 0) {
-                          meterFare += mid * midRate;
-                        }
-                        if (distanceKm > midDist) {
-                          const high = distanceKm - midDist;
-                          if (high > 0) {
-                            meterFare += high * highRate;
+        <Card title="Analysis" className="result-card" styles={{ body: {height: '28vh', overflowY: 'auto', padding: '0 24px'} }}>
+          <Tabs
+            defaultActiveKey="barchart"
+            items={[
+              {
+                key: 'barchart',
+                label: 'Price Analysis',
+                children: (() => {
+                  // 计算各交通方式的实际成本和时间成本
+                  const chartData = [
+                    {
+                      name: 'Fuel Car',
+                      actual: (() => {
+                        const driving = results?.driving?.route?.paths?.[0];
+                        if (!driving) return 0;
+                        const distanceKm = driving.distance / 1000;
+                        const durationHour = driving.duration / 3600;
+                        const fuelCost = (fuelConsumption / 100) * fuelPrice * distanceKm;
+                        const tollCost = Number(driving.tolls || 0);
+                        const depreciation = fuelPurchaseCost / (fuelYears * fuelAnnualMileage) * distanceKm;
+                        const parkingCost = (fuelParkingMonthly * 12 / fuelAnnualMileage) * distanceKm;
+                        const timeValue = durationHour * hourValue;
+                        const totalCost = fuelCost + tollCost + depreciation + parkingCost;
+                        return totalCost;
+                      })(),
+                      time: (() => {
+                        const driving = results?.driving?.route?.paths?.[0];
+                        if (!driving) return 0;
+                        const distanceKm = driving.distance / 1000;
+                        const durationHour = driving.duration / 3600;
+                        const fuelCost = (fuelConsumption / 100) * fuelPrice * distanceKm;
+                        const tollCost = Number(driving.tolls || 0);
+                        const depreciation = fuelPurchaseCost / (fuelYears * fuelAnnualMileage) * distanceKm;
+                        const parkingCost = (fuelParkingMonthly * 12 / fuelAnnualMileage) * distanceKm;
+                        const timeValue = durationHour * hourValue;
+                        return timeValue;
+                      })(),
+                    },
+                    {
+                      name: 'EV',
+                      actual: (() => {
+                        const driving = results?.driving?.route?.paths?.[0];
+                        if (!driving) return 0;
+                        const distanceKm = driving.distance / 1000;
+                        const durationHour = driving.duration / 3600;
+                        const energyCost = (evConsumption / 100) * evElectricityPrice * distanceKm;
+                        const tollCost = Number(driving.tolls || 0);
+                        const depreciation = evPurchaseCost / (evYears * evAnnualMileage) * distanceKm;
+                        const parkingCost = (evParkingMonthly * 12 / evAnnualMileage) * distanceKm;
+                        const timeValue = durationHour * hourValue;
+                        const totalCost = energyCost + tollCost + depreciation + parkingCost;
+                        return totalCost;
+                      })(),
+                      time: (() => {
+                        const driving = results?.driving?.route?.paths?.[0];
+                        if (!driving) return 0;
+                        const distanceKm = driving.distance / 1000;
+                        const durationHour = driving.duration / 3600;
+                        const energyCost = (evConsumption / 100) * evElectricityPrice * distanceKm;
+                        const tollCost = Number(driving.tolls || 0);
+                        const depreciation = evPurchaseCost / (evYears * evAnnualMileage) * distanceKm;
+                        const parkingCost = (evParkingMonthly * 12 / evAnnualMileage) * distanceKm;
+                        const timeValue = durationHour * hourValue;
+                        return timeValue;
+                      })(),
+                    },
+                    {
+                      name: 'Robotaxi',
+                      actual: (() => {
+                        const driving = results?.driving?.route?.paths?.[0];
+                        if (!driving) return 0;
+                        const params = robotaxiParams;
+                        const tolls = Number(driving.tolls || 0);
+                        const distanceKm = driving.distance / 1000;
+                        const durationMin = Math.round(driving.duration / 60);
+                        // --- Cost calculations (copy from robotaxi tab) ---
+                        const energyCost = distanceKm * params.energyPer100km * params.electricityPrice / 100;
+                        const chargingServiceCost = distanceKm * params.energyPer100km * params.chargingServiceFeePerKwh / 100;
+                        const parkingCost = distanceKm * params.parkingFeePer100km / 100;
+                        const tollCost = distanceKm * params.tollPerKm + tolls;
+                        const depreciation = params.vehiclePrice / params.depreciationYears / params.annualMileage * distanceKm;
+                        const computeCost = distanceKm * params.computeCostPerKm;
+                        const maintenanceCost = distanceKm * params.maintenancePerKm;
+                        const insuranceCost = params.insurancePerYear / params.annualMileage * distanceKm;
+                        const taxCost = params.taxPerYear / params.annualMileage * distanceKm;
+                        const tireCost = params.tirePerYear / params.annualMileage * distanceKm;
+                        const remoteMonitorCost = distanceKm * params.remoteMonitorPerKm;
+                        // timeValue 单独算
+                        const totalOperatingCost = energyCost + chargingServiceCost + parkingCost + tollCost + depreciation + computeCost + maintenanceCost + insuranceCost + taxCost + tireCost + remoteMonitorCost;
+                        const operatorServiceFee = totalOperatingCost * params.operatorServiceRate;
+                        const adRevenue = params.adRevenuePerKm * distanceKm;
+                        const passengerFare = totalOperatingCost + operatorServiceFee - adRevenue;
+                        return passengerFare;
+                      })(),
+                      time: (() => {
+                        const driving = results?.driving?.route?.paths?.[0];
+                        if (!driving) return 0;
+                        const durationMin = Math.round(driving.duration / 60);
+                        const timeValue = durationMin / 60 * hourValue;
+                        return timeValue;
+                      })(),
+                    },
+                    {
+                      name: 'Taxi',
+                      actual: (() => {
+                        const driving = results?.driving?.route?.paths?.[0];
+                        if (!driving) return 0;
+                        const tolls = Number(driving.tolls || 0);
+                        const distanceKm = driving.distance / 1000;
+                        const durationMin = driving.duration / 60;
+                        let meterFare = baseFare;
+                        if (distanceKm > baseDist) {
+                          const mid = Math.min(distanceKm, midDist) - baseDist;
+                          if (mid > 0) {
+                            meterFare += mid * midRate;
+                          }
+                          if (distanceKm > midDist) {
+                            const high = distanceKm - midDist;
+                            if (high > 0) {
+                              meterFare += high * highRate;
+                            }
                           }
                         }
-                      }
-                      // 等时费
-                      const timeFee = durationMin * timeRate;
-                      meterFare += timeFee;
-                      // 时间价值
-                      const timeValueTaxi = durationMin / 60 * hourValue;
-                      meterFare += timeValueTaxi;
-                      // 去程高速费
-                      meterFare += tolls;
-                      // 返程部分
-                      let returnFare = 0, returnToll = 0;
-                      if (distanceKm > returnDist) {
-                        returnToll = tolls; // 假设回程高速费=去程高速费
-                        returnFare = meterFare * returnRatio;
-                      }
-                      // 总价
-                      const totalFare = meterFare + (distanceKm > returnDist ? (returnToll + returnFare) : 0);
-                      return totalFare;
-                    })(),
-                    time: (() => {
-                      const driving = results?.driving?.route?.paths?.[0];
-                      if (!driving) return 0;
-                      const durationMin = driving.duration / 60;
-                      const timeValueTaxi = durationMin / 60 * hourValue;
-                      return timeValueTaxi;
-                    })(),
-                  },
-                  {
-                    name: 'eVTOL',
-                    actual: (() => {
-                      const straight = results?.straight?.results?.[0];
-                      if (!straight) return 0;
-                      const distance = straight.distance;
-                      const cruiseSpeed = 200 * 1000 / 3600;
-                      const takeoffLandSpeed = 7.5;
-                      const cruiseAltitude = 800;
-                      const takeoffTime = cruiseAltitude / takeoffLandSpeed;
-                      const landingTime = cruiseAltitude / takeoffLandSpeed;
-                      const cruiseDistance = Math.max(0, distance - 2 * cruiseAltitude);
-                      const cruiseTime = cruiseDistance / cruiseSpeed;
-                      const totalTime = takeoffTime + cruiseTime + landingTime;
-                      const flightHours = totalTime / 3600;
-                      const p = evtolParams;
-                      const depreciation = p.aircraftPrice / (p.aircraftLifespanYears * p.annualFlightHours) * flightHours;
-                      const computeCost = p.computeCostPerHour * flightHours;
-                      const airwayCost = p.airwayCostPerKm * (distance / 1000);
-                      const vertiportCost = p.vertiportCostPerFlight;
-                      const parkingCost = p.parkingCostPerHour * flightHours;
-                      const maintenanceCost = p.maintenancePerHour * flightHours;
-                      const energyCost = p.energyPerHour * flightHours;
-                      return depreciation + computeCost + airwayCost + vertiportCost + parkingCost + maintenanceCost + energyCost;
-                    })(),
-                    time: (() => {
-                      const straight = results?.straight?.results?.[0];
-                      if (!straight) return 0;
-                      const distance = straight.distance;
-                      const cruiseSpeed = 200 * 1000 / 3600;
-                      const takeoffLandSpeed = 7.5;
-                      const cruiseAltitude = 800;
-                      const takeoffTime = cruiseAltitude / takeoffLandSpeed;
-                      const landingTime = cruiseAltitude / takeoffLandSpeed;
-                      const cruiseDistance = Math.max(0, distance - 2 * cruiseAltitude);
-                      const cruiseTime = cruiseDistance / cruiseSpeed;
-                      const totalTime = takeoffTime + cruiseTime + landingTime;
-                      const flightHours = totalTime / 3600;
-                      return flightHours * hourValue;
-                    })(),
-                  },
-                ];
-                return (
-                  <div style={{ width: '100%', height: 300 }}>
-                    <ReactECharts
-                      style={{ height: '23vh' }}
-                      option={{
-                        grid: { left: 40, right: 20, top: 50, bottom: 30 },
-                        tooltip: {
-                          trigger: 'axis',
-                          axisPointer: { type: 'shadow' },
-                          formatter: params => {
-                            const p = params[0];
-                            const t = params[1];
-                            return `${p.name}<br/>Actual Cost: ${p.value.toFixed(2)} RMB<br/>Time Cost: ${t.value.toFixed(2)} RMB<br/>Total: ${(p.value + t.value).toFixed(2)} RMB`;
-                          }
-                        },
-                        legend: {
-                          data: [
+                        // 等时费
+                        const timeFee = durationMin * timeRate;
+                        meterFare += timeFee;
+                        // 时间价值
+                        const timeValueTaxi = durationMin / 60 * hourValue;
+                        // meterFare 不加时间价值
+                        // 去程高速费
+                        meterFare += tolls;
+                        // 返程部分
+                        let returnFare = 0, returnToll = 0;
+                        if (distanceKm > returnDist) {
+                          returnToll = tolls; // 假设回程高速费=去程高速费
+                          returnFare = meterFare * returnRatio;
+                        }
+                        // 总价（不含时间价值）
+                        const passengerFare = meterFare + (distanceKm > returnDist ? (returnToll + returnFare) : 0);
+                        return passengerFare;
+                      })(),
+                      time: (() => {
+                        const driving = results?.driving?.route?.paths?.[0];
+                        if (!driving) return 0;
+                        const durationMin = driving.duration / 60;
+                        const timeValueTaxi = durationMin / 60 * hourValue;
+                        return timeValueTaxi;
+                      })(),
+                    },
+                    {
+                      name: 'eVTOL',
+                      actual: (() => {
+                        const straight = results?.straight?.results?.[0];
+                        if (!straight) return 0;
+                        const distance = straight.distance;
+                        const cruiseSpeed = 200 * 1000 / 3600;
+                        const takeoffLandSpeed = 7.5;
+                        const cruiseAltitude = 800;
+                        const takeoffTime = cruiseAltitude / takeoffLandSpeed;
+                        const landingTime = cruiseAltitude / takeoffLandSpeed;
+                        const cruiseDistance = Math.max(0, distance - 2 * cruiseAltitude);
+                        const cruiseTime = cruiseDistance / cruiseSpeed;
+                        const totalTime = takeoffTime + cruiseTime + landingTime;
+                        const flightHours = totalTime / 3600;
+                        const p = evtolParams;
+                        const depreciation = p.aircraftPrice / (p.aircraftLifespanYears * p.annualFlightHours) * flightHours;
+                        const computeCost = p.computeCostPerHour * flightHours;
+                        const airwayCost = p.airwayCostPerKm * (distance / 1000);
+                        const vertiportCost = p.vertiportCostPerFlight;
+                        const parkingCost = p.parkingCostPerHour * flightHours;
+                        const maintenanceCost = p.maintenancePerHour * flightHours;
+                        const energyCost = p.energyPerHour * flightHours;
+                        return depreciation + computeCost + airwayCost + vertiportCost + parkingCost + maintenanceCost + energyCost;
+                      })(),
+                      time: (() => {
+                        const straight = results?.straight?.results?.[0];
+                        if (!straight) return 0;
+                        const distance = straight.distance;
+                        const cruiseSpeed = 200 * 1000 / 3600;
+                        const takeoffLandSpeed = 7.5;
+                        const cruiseAltitude = 800;
+                        const takeoffTime = cruiseAltitude / takeoffLandSpeed;
+                        const landingTime = cruiseAltitude / takeoffLandSpeed;
+                        const cruiseDistance = Math.max(0, distance - 2 * cruiseAltitude);
+                        const cruiseTime = cruiseDistance / cruiseSpeed;
+                        const totalTime = takeoffTime + cruiseTime + landingTime;
+                        const flightHours = totalTime / 3600;
+                        return flightHours * hourValue;
+                      })(),
+                    },
+                  ];
+                  return (
+                    <div style={{ width: '100%', height: 300 }}>
+                      <ReactECharts
+                        style={{ height: '23vh' }}
+                        option={{
+                          grid: { left: 40, right: 20, top: 50, bottom: 30 },
+                          tooltip: {
+                            trigger: 'axis',
+                            axisPointer: { type: 'shadow' },
+                            formatter: params => {
+                              const p = params[0];
+                              const t = params[1];
+                              return `${p.name}<br/>Actual Cost: ${p.value.toFixed(2)} RMB<br/>Time Cost: ${t.value.toFixed(2)} RMB<br/>Total: ${(p.value + t.value).toFixed(2)} RMB`;
+                            }
+                          },
+                          legend: {
+                            data: [
+                              {
+                                name: 'Actual Cost',
+                                icon: 'rect',
+                                itemStyle: {
+                                  color: '#fff',
+                                  borderColor: '#000',
+                                  borderWidth: 1
+                                }
+                              },
+                              {
+                                name: 'Time Cost',
+                                icon: 'rect',
+                                itemStyle: {
+                                  color: {
+                                    type: 'pattern',
+                                    image: createStripePattern('#000', '#fff'),
+                                    repeat: 'repeat'
+                                  },
+                                  borderColor: '#000',
+                                  borderWidth: 0
+                                }
+                              }
+                            ],
+                            itemWidth: 28,
+                            itemHeight: 12,
+                            textStyle: { fontWeight: 500, fontSize: 12 },
+                            top: 0,
+                            left: 'center',
+                            orient: 'horizontal',
+                          },
+                          xAxis: {
+                            type: 'category',
+                            data: chartData.map(d => d.name),
+                            axisLabel: { fontWeight: 600, fontSize: 12 },
+                          },
+                          yAxis: {
+                            type: 'value',
+                            name: 'RMB',
+                            nameTextStyle: { fontWeight: 500, fontSize: 12, align: 'left' },
+                            axisLabel: { fontWeight: 500, fontSize: 12 },
+                          },
+                          series: [
                             {
                               name: 'Actual Cost',
-                              icon: 'rect',
+                              type: 'bar',
+                              stack: 'total',
+                              data: chartData.map(d => Number(d.actual.toFixed(2))),
                               itemStyle: {
-                                color: '#fff',
-                                borderColor: '#000',
-                                borderWidth: 1
+                                color: function(params) {
+                                  const palette = ['#1890ff','#00c2b3','#00b96b','#ffb300','#ff4d4f'];
+                                  return palette[params.dataIndex % palette.length];
+                                },
+                                borderRadius: [6,6,0,0],
+                              },
+                              barWidth: 38,
+                              label: {
+                                show: false
                               }
                             },
                             {
                               name: 'Time Cost',
-                              icon: 'rect',
+                              type: 'bar',
+                              stack: 'total',
+                              data: chartData.map(d => Number(d.time.toFixed(2))),
                               itemStyle: {
-                                color: {
-                                  type: 'pattern',
-                                  image: createStripePattern('#000', '#fff'),
-                                  repeat: 'repeat'
+                                color: function(params) {
+                                  const palette = ['#1890ff','#00c2b3','#00b96b','#ffb300','#ff4d4f'];
+                                  const color = palette[params.dataIndex % palette.length];
+                                  return {
+                                    type: 'pattern',
+                                    image: createStripePattern(color),
+                                    repeat: 'repeat'
+                                  };
                                 },
-                                borderColor: '#000',
-                                borderWidth: 0
+                                borderRadius: [6,6,0,0],
+                              },
+                              barWidth: 38,
+                              label: {
+                                show: false
                               }
                             }
-                          ],
-                          itemWidth: 28,
-                          itemHeight: 12,
-                          textStyle: { fontWeight: 500, fontSize: 12 },
-                          top: 0,
-                          left: 'center',
-                          orient: 'horizontal',
-                        },
-                        xAxis: {
-                          type: 'category',
-                          data: chartData.map(d => d.name),
-                          axisLabel: { fontWeight: 600, fontSize: 12 },
-                        },
-                        yAxis: {
-                          type: 'value',
-                          name: 'RMB',
-                          nameTextStyle: { fontWeight: 500, fontSize: 12, align: 'left' },
-                          axisLabel: { fontWeight: 500, fontSize: 12 },
-                        },
-                        series: [
-                          {
-                            name: 'Actual Cost',
-                            type: 'bar',
-                            stack: 'total',
-                            data: chartData.map(d => Number(d.actual.toFixed(2))),
-                            itemStyle: {
-                              color: function(params) {
-                                const palette = ['#1890ff','#00c2b3','#00b96b','#ffb300','#ff4d4f'];
-                                return palette[params.dataIndex % palette.length];
-                              },
-                              borderRadius: [6,6,0,0],
-                            },
-                            barWidth: 38,
-                            label: {
-                              show: false
-                            }
-                          },
-                          {
-                            name: 'Time Cost',
-                            type: 'bar',
-                            stack: 'total',
-                            data: chartData.map(d => Number(d.time.toFixed(2))),
-                            itemStyle: {
-                              color: function(params) {
-                                const palette = ['#1890ff','#00c2b3','#00b96b','#ffb300','#ff4d4f'];
-                                const color = palette[params.dataIndex % palette.length];
-                                return {
-                                  type: 'pattern',
-                                  image: createStripePattern(color),
-                                  repeat: 'repeat'
-                                };
-                              },
-                              borderRadius: [6,6,0,0],
-                            },
-                            barWidth: 38,
-                            label: {
-                              show: false
-                            }
-                          }
-                        ]
-                      }}
-                    />
-                  </div>
-                );
-              })()}
-            </Tabs.TabPane>
-            <Tabs.TabPane tab="AI Analysis" key="deepseek">
-              {aiLoading ? (
-                <div className="ai-spin-center"><Spin /></div>
-              ) : aiError ? (
-                <div style={{ color: 'red' }}>{aiError}</div>
-              ) : (
-                <>
-                  <div style={{ maxHeight: '19vh', overflow: 'auto' }} className="markdown-body">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiAnalysis}</ReactMarkdown>
-                  </div>
-                  {aiAnalysis && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 12, marginBottom: 2 }}>
-                      <Button
-                        style={{ flex: 1 }}
-                        onClick={() => {
-                          if (navigator.clipboard) {
-                            navigator.clipboard.writeText(aiAnalysis);
-                          } else {
-                            const textarea = document.createElement('textarea');
-                            textarea.value = aiAnalysis;
-                            document.body.appendChild(textarea);
-                            textarea.select();
-                            document.execCommand('copy');
-                            document.body.removeChild(textarea);
-                          }
+                          ]
                         }}
-                      >
-                        Copy Content
-                      </Button>
+                      />
+                    </div>
+                  );
+                })(),
+              },
+              {
+                key: 'deepseek',
+                label: 'AI Analysis',
+                children: aiLoading ? (
+                  <div className="ai-spin-center"><Spin /></div>
+                ) : aiError ? (
+                  <div style={{ color: 'red' }}>{aiError}</div>
+                ) : (
+                  <>
+                    <div style={{ maxHeight: '19vh', overflow: 'auto' }} className="markdown-body">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{aiAnalysis}</ReactMarkdown>
+                    </div>
+                    {aiAnalysis && (
+                      <div style={{ display: 'flex', gap: 8, marginTop: 12, marginBottom: 2 }}>
+                        <Button
+                          style={{ flex: 1 }}
+                          onClick={() => {
+                            if (navigator.clipboard) {
+                              navigator.clipboard.writeText(aiAnalysis);
+                            } else {
+                              const textarea = document.createElement('textarea');
+                              textarea.value = aiAnalysis;
+                              document.body.appendChild(textarea);
+                              textarea.select();
+                              document.execCommand('copy');
+                              document.body.removeChild(textarea);
+                            }
+                          }}
+                        >
+                          Copy Content
+                        </Button>
+                        <Button
+                          type="primary"
+                          style={{ flex: 1 }}
+                          onClick={() => setQaModalOpen(true)}
+                          disabled={aiLoading}
+                        >
+                          Still have questions?
+                        </Button>
+                      </div>
+                    )}
+                    {!aiAnalysis && !aiLoading && !aiError && (
                       <Button
                         type="primary"
-                        style={{ flex: 1 }}
-                        onClick={() => setQaModalOpen(true)}
-                        disabled={aiLoading}
+                        style={{ marginTop: 12, width: '100%' }}
+                        onClick={fetchAIAnalysis}
+                        disabled={!results || aiLoading}
                       >
-                        Still have questions?
+                        Run Analysis
                       </Button>
-                    </div>
-                  )}
-                  {!aiAnalysis && !aiLoading && !aiError && (
-                    <Button
-                      type="primary"
-                      style={{ marginTop: 12, width: '100%' }}
-                      onClick={fetchAIAnalysis}
-                      disabled={!results || aiLoading}
-                    >
-                      Run Analysis
-                    </Button>
-                  )}
-                </>
-              )}
-            </Tabs.TabPane>
-          </Tabs>
+                    )}
+                  </>
+                ),
+              },
+            ]}
+          />
         </Card>
-        <Card title="eVTOL Cost" className="result-card" bodyStyle={{height: '27vh', overflowY: 'auto', padding: '0 24px'}}>
+        <Card title="eVTOL Cost" className="result-card" styles={{ body: {height: '27vh', overflowY: 'auto', padding: '0 24px'} }}>
           {straight ? (
             (() => {
               const handleParam = (key, val) => setEvtolParams(p => ({ ...p, [key]: val }));
@@ -1154,7 +1172,7 @@ function App() {
             })()
           ) : 'No data'}
         </Card>
-        <Card title="Ground Transport" className="result-card" bodyStyle={{height: '29vh', overflowY: 'auto', padding: '0 24px'}}>
+        <Card title="Ground Transport" className="result-card" styles={{ body: {height: '29vh', overflowY: 'auto', padding: '0 24px'} }}>
           {/* 统一展示距离、时长、非直线系数 */}
           {driving && straight && (
             <div style={{marginBottom: 0, padding: '8px 0', borderBottom: '1px solid #eee', fontSize: 14, color: '#333'}}>
@@ -1197,8 +1215,8 @@ function App() {
                         <div style={{display:'flex', justifyContent:'space-between'}}>
                           <span style={{fontWeight:600, fontSize:14}}> + Time Value</span>
                           <span style={{fontWeight:600, fontSize:14}}>{timeValue.toFixed(2)} RMB</span>
-                        </div>
                       </div>
+                    </div>
                     </div>
                     <div style={{fontSize:13, color:'#888', marginTop:8, paddingBottom:10}}>
                       <span style={{cursor: 'pointer'}} onClick={() => toggleAssumption('fuel')}>
@@ -1264,8 +1282,8 @@ function App() {
                         <div style={{display:'flex', justifyContent:'space-between'}}>
                           <span style={{fontWeight:600, fontSize:14}}> + Time Value</span>
                           <span style={{fontWeight:600, fontSize:14}}>{timeValue.toFixed(2)} RMB</span>
-                        </div>
                       </div>
+                    </div>
                     </div>
                     <div style={{fontSize:13, color:'#888', marginTop:8, paddingBottom:10}}>
                       <span style={{cursor: 'pointer'}} onClick={() => toggleAssumption('ev')}>
@@ -1362,8 +1380,8 @@ function App() {
                         <div style={{display:'flex', justifyContent:'space-between'}}>
                           <span style={{fontWeight:600, fontSize:14}}> + Time Value</span>
                           <span style={{fontWeight:600, fontSize:14}}>{timeValue.toFixed(2)} RMB</span>
-                        </div>
                       </div>
+                    </div>
                     </div>
                     <div style={{fontSize:13, color:'#888', marginTop:8, paddingBottom:10}}>
                       <span style={{cursor: 'pointer'}} onClick={() => toggleAssumption('robotaxi')}>
